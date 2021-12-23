@@ -20,6 +20,8 @@ function tokens(n) {
 
 describe("FoodVendor", function () {
 
+  this.timeout(20000);
+
   let token, foodVendor, receipt, createFoodReceipt, purchaseFoodReceipt
 
   beforeEach(async () => {
@@ -29,7 +31,7 @@ describe("FoodVendor", function () {
     await token.transfer(foodVendor.address, tokens('1000000'));
 
     // Purchase tokens
-    receipt = await foodVendor.buyTokens({ from: buyer, value: tokens('0.00000000000000001') });
+    receipt = await foodVendor.buyTokens({ from: buyer, value: tokens('0.000000000000001') });
 
     //Owner create food
     createFoodReceipt = await foodVendor.createFood("Rice", '20', 1, { from: owner});
@@ -39,22 +41,22 @@ describe("FoodVendor", function () {
 
   it("contract has tokens", async () => {
     let balance = await token.balanceOf(foodVendor.address);
-    expect(balance.toString()).to.equal(tokens('999999e24'));
+    expect(balance.toString()).to.equal('999999999999999999900000');
   });
 
 
   it('Allows user to instantly purchase tokens from foodVendor for a fixed price', async () => {
     // Check buyer token balance after purchase
     let buyerBalance = await token.balanceOf(buyer);
-    expect(buyerBalance.toString()).to.equal('1000');
+    expect(buyerBalance.toString()).to.equal('100000');
 
     // Check foodVendor balance after purchase
     let foodVendorBalance
     foodVendorBalance = await token.balanceOf(foodVendor.address);
-    expect(foodVendorBalance.toString()).to.equal(tokens('999999e24'));
+    expect(foodVendorBalance.toString()).to.equal('999999999999999999900000');
 
     foodVendorBalance = await web3.eth.getBalance(foodVendor.address);
-    expect(foodVendorBalance.toString()).to.equal(tokens('1'));
+    expect(foodVendorBalance.toString()).to.equal(tokens('0.000000000000001'));
   });
 
 
@@ -63,7 +65,7 @@ describe("FoodVendor", function () {
     expectEvent(receipt, 'TokensPurchased',
       { buyer: buyer, 
         foodvendortoken: token.address, 
-        amount: '1000', 
+        amount: '100000', 
         rate: '100'
       });
   });
@@ -91,18 +93,18 @@ describe("FoodVendor", function () {
   it("Allow buyer to instantly purchase food", async function () {
 
     //approve food vendor contract
-    await token.approve(foodVendor.address, '10000',{ from:owner });
+    await token.approve(foodVendor.address, '10000',{ from: buyer });
 
     // purchase food
     purchaseFoodReceipt = await foodVendor.purchaseFood(1, { from: buyer });
     // Check buyer token balance after purchase
     let buyerBalance = await token.balanceOf(buyer);
-    expect(buyerBalance.toString()).to.equal(tokens('100'));
+    expect(buyerBalance.toString()).to.equal('99980');
 
     // Check foodVendor balance after purchase
     let foodVendorBalance
     foodVendorBalance = await token.balanceOf(foodVendor.address);
-    expect(foodVendorBalance.toString()).to.equal(tokens('999999e24'));
+    expect(foodVendorBalance.toString()).to.equal('999999999999999999900000');
   });
 
 
@@ -150,30 +152,21 @@ describe("FoodVendor", function () {
   it('Allow buyer to view food info', async () => {
     receipt = await foodVendor.getFoodInfo(1, { from: buyer });
     expect(receipt[1]).to.equal('Rice');
-    expect(receipt[2]).to.equal('20');
+    expect(receipt[2].toString()).to.equal('20');
   });
 
 
   it('Allows owner to instantly withdraw ether from foodVendor', async () => {
-    const balanceEth = await balance.current(foodVendor.address, 'ether')
 
-    await foodVendor.withdraw({ from: owner, value: balanceEth });
-
-    // Check foodVendor balance after withdraw
-    let foodVendorBalance, ownerBalance
-    foodVendorBalance = balanceEth;
-    expect(foodVendorBalance).to.equal('0');
-
-    ownerBalance = await balance.current(owner, 'ether');
-    expect(ownerBalance).to.equal('1');
+    await foodVendor.withdraw({ from: owner });
+    const foodVendorBalance = await web3.eth.getBalance(foodVendor.address);
+    expect(foodVendorBalance.toString()).to.equal('0');
   });
 
 
   //non-owner shouldn't withdraw
-  it("Fails when called by a non-owner account", async function () {
-    const balanceEth = await balance.current(foodVendor.address, 'ether')
-
-    await expectRevert( await foodVendor.withdraw({ from: buyer, value: balanceEth }), 
+  it("withdrawing ether should fails when called by a non-owner account", async function () {
+    await expectRevert( await foodVendor.withdraw({ from: buyer }), 
       "Unauthorized Account"
       );
   });
